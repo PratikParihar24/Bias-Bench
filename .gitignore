@@ -1,0 +1,30 @@
+# --- Secrets & Environment
+
+.env
+.env.local
+.env.*.local
+
+venv/
+__pycache__/
+*.pyc
+
+#frontend dependencies
+
+node_modules/
+dist/
+.next/
+out/
+build/
+
+# --- IDE & System Files
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# --- Backend Specific 
+
+.python-version
+pip-log.txt
