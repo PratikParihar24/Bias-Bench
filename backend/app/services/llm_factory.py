@@ -25,7 +25,7 @@ class LLMFactory:
         except Exception as e:
             return f"[Gemini Error]: {str(e)}"
 
-    async def fetch_llama(self,propmt:str) -> str:
+    async def fetch_llama(self,prompt:str) -> str:
         try:
             response = await self.groq_client.chat.completions.create(
                 messages=[{"role":"user","content": str(prompt)}],

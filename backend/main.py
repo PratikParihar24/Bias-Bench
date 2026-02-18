@@ -13,12 +13,11 @@ app = FastAPI(title="BiasBench API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"], # Wildcard allows Next.js to connect from ANY local IP
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # Spin up the AI engine 
 
 llm_engine = LLMFactory()
