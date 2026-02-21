@@ -11,6 +11,7 @@ export default function BiasBenchDashboad() {
   const [isAuditing,setIsAuditing ] = useState(false) 
   const [hasAudited,setHasAudited] = useState(false)
   const [response,setResponse] = useState({a:"",b:"",c:""})
+  const [verdict, setVerdict] = useState<any>(null)
   const [isStreaming, setStreaming] = useState(false)
 
   const handleAudit = useCallback(async(prompt:string) => {
@@ -19,7 +20,7 @@ export default function BiasBenchDashboad() {
 
     setIsAuditing(true)
     setHasAudited(false)
-    setStreaming(true)
+    setStreaming(false)
     setResponse({a:"Connecting to BiasBench AI Engine...", b:"Waiting...", c:"Waiting...."})
 
     try{
@@ -28,25 +29,27 @@ export default function BiasBenchDashboad() {
       const res = await fetch("http://127.0.0.1:8000/api/audit", {
         method:"POST",
         headers:{
-          "content-type":"application/json",
+          "Content-Type":"application/json",
         },
         body: JSON.stringify({prompt : prompt}),
     });
 
     if (!res.ok) {
-      throw new Error("Server Error: ${res.status}");
+      throw new Error(`Server Error: ${res.status}`);
     }
 
     // 3. Parse the JSON returned by Python
 
     const jsonResponse = await res.json();
-    const aiData = jsonResponse.data;
+
+    const aiResponse = jsonResponse.data.responses || {};
+    const aiVerdict = jsonResponse.data.verdict || null ;
 
     // 4. THE FIX: Fallback Mapping. 
       // If 'llama_70b' doesn't exist, it looks for 'llama'. If that fails, it shows an error string.
-      const modelA = aiData.gemini || "Gemini failed to respond.";
-      const modelB = aiData.llama_70b || aiData.llama || "Llama failed to respond.";
-      const modelC = aiData.llama_8b || aiData.mixtral || "Model C failed to respond.";
+      const modelA = aiResponse.gemini || "Gemini failed to respond.";
+      const modelB = aiResponse.llama_70b || aiResponse.llama || "Llama failed to respond.";
+      const modelC = aiResponse.llama_8b || aiResponse.mixtral || "Model C failed to respond.";
 
 
     // 4. Feed the real data into your React state setResponse
@@ -55,6 +58,8 @@ export default function BiasBenchDashboad() {
       b : modelB,
       c : modelC,
     });
+
+    setVerdict(aiVerdict);
 
     // 5. Trigger your UI animations
 
@@ -122,7 +127,7 @@ export default function BiasBenchDashboad() {
     </div>
 
     {/* Verdict Panel */}
-    <VerdictPanel isActive={hasAudited} />
+    <VerdictPanel isActive={hasAudited} data={verdict} />
     </div>
   )
 }

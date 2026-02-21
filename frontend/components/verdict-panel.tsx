@@ -1,149 +1,80 @@
 "use client"
 
-import { Scale, Tag, BarChart3, AlertTriangle } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { BiasRadarChart } from "@/components/bias-radar-chart"
+import { Activity, AlertTriangle, CheckCircle, Info } from "lucide-react"
 
-interface VerdictPanelProps {
-  isActive: boolean
+// Define the exact shape of the JSON our Python Judge is sending
+
+interface VerdictData {
+  summary: string;
+  subjectivity_score: number;
+  bias_tag: string;
+  agreement_rate: string;
+  confidence:number;
 }
 
-export function VerdictPanel({ isActive }: VerdictPanelProps) {
+interface VerdictPanelProps {
+  isActive: boolean;
+  data: VerdictData | null;
+}
+
+export function VerdictPanel({isActive, data}: VerdictPanelProps) {
+  if (!isActive || !data) return null;
+
   return (
-    <div className="mx-6 mb-6">
-      <div className="relative rounded-lg border border-border bg-card overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-secondary/30">
-          <Scale className="size-4 text-primary" />
-          <h2 className="text-sm font-mono font-bold tracking-wider text-foreground uppercase">
-            {"Judge's Verdict"}
-          </h2>
-          {isActive && (
-            <Badge
-              variant="outline"
-              className="ml-auto text-[10px] font-mono tracking-wider text-primary border-primary/30"
-            >
-              ANALYSIS COMPLETE
-            </Badge>
-          )}
+    <div className="mx-6 mb-6 p-6 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md animate-fade-in-up">
+      <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+        <Activity className="text-blue-400 h-6 w-6" />
+        <h2 className="text-xl font-bold text-white tracking-wide">Verdict Summary</h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Subjectivity Score */}
+        <div className="col-span-1 bg-white/5 rounded-lg p-4 border border-white/5">
+          <div className="text-sm text-gray-400 mb-2 uppercase tracking-wider font-semibold">
+            Subjectivity Score
+          </div>
+          <div className="text-4xl font-black text-white mb-2">{data.subjectivity_score}<span className="text-xl text-gray-500">/100</span></div>
+          <div className="w-full bg-gray-800 rounded-full h-2 mb-2">
+            <div 
+              className="bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 h-2 rounded-full" 
+              style={{ width: `${data.subjectivity_score}%` }}
+            ></div>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500 font-medium">
+            <span>Objective</span>
+            <span>Subjective</span>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex flex-col lg:flex-row">
-          {/* Radar Chart */}
-          <div className="flex-1 p-5 border-b lg:border-b-0 lg:border-r border-border">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="size-3.5 text-muted-foreground" />
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                Bias Signature Map
-              </span>
-            </div>
-            <BiasRadarChart isActive={isActive} />
-            {/* Legend */}
-            <div className="flex items-center justify-center gap-5 mt-2">
-              {[
-                { label: "Model A", color: "#38bdf8" },
-                { label: "Model B", color: "#e879a8" },
-                { label: "Model C", color: "#4ade80" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-1.5">
-                  <div
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-[10px] font-mono text-muted-foreground">
-                    {item.label}
-                  </span>
-                </div>
-              ))}
-            </div>
+        {/* AI Summary & Bias Tag */}
+        <div className="col-span-1 md:col-span-2 bg-white/5 rounded-lg p-4 border border-white/5 flex flex-col justify-center">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="text-yellow-400 h-4 w-4" />
+            <span className="text-sm text-gray-400 uppercase tracking-wider font-semibold">Detected Bias Tag</span>
           </div>
+          <div className="inline-block px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm font-bold w-max mb-4">
+            {data.bias_tag}
+          </div>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            {data.summary}
+          </p>
+        </div>
 
-          {/* Summary */}
-          <div className="flex-1 p-5 flex flex-col gap-5">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="size-3.5 text-muted-foreground" />
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                Verdict Summary
-              </span>
+        {/* Metrics */}
+        <div className="col-span-1 flex flex-col gap-4">
+          <div className="bg-white/5 rounded-lg p-4 border border-white/5 flex items-center justify-between flex-1">
+            <div>
+              <div className="text-sm text-gray-400 mb-1 uppercase tracking-wider font-semibold">Agree Rate</div>
+              <div className="text-xl font-bold text-white">{data.agreement_rate}</div>
             </div>
-
-            {isActive ? (
-              <>
-                {/* Subjectivity Score */}
-                <div className="rounded border border-border bg-secondary/30 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                      Subjectivity Score
-                    </span>
-                    <span className="text-2xl font-mono font-bold text-primary">
-                      73.4
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-input overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-1000"
-                      style={{
-                        width: "73.4%",
-                        background: "linear-gradient(90deg, #38bdf8, #e879a8)",
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-1.5">
-                    <span className="text-[9px] font-mono text-muted-foreground">Objective</span>
-                    <span className="text-[9px] font-mono text-muted-foreground">Subjective</span>
-                  </div>
-                </div>
-
-                {/* Bias Tag */}
-                <div className="rounded border border-border bg-secondary/30 p-4">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-3">
-                    Detected Bias Tag
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <Tag className="size-4 text-accent" />
-                    <span className="text-lg font-mono font-bold text-accent">
-                      Left-Leaning
-                    </span>
-                  </div>
-                  <p className="text-[11px] font-mono text-muted-foreground mt-2 leading-relaxed">
-                    Models A and C exhibit higher subjectivity with sentiment-loaded language.
-                    Model B demonstrates more neutral framing with balanced perspective representation.
-                  </p>
-                </div>
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Agree Rate", value: "67%", color: "#38bdf8" },
-                    { label: "Divergence", value: "HIGH", color: "#e879a8" },
-                    { label: "Confidence", value: "89%", color: "#4ade80" },
-                  ].map((stat) => (
-                    <div
-                      key={stat.label}
-                      className="rounded border border-border bg-input/50 p-3 text-center"
-                    >
-                      <span
-                        className="text-sm font-mono font-bold block"
-                        style={{ color: stat.color }}
-                      >
-                        {stat.value}
-                      </span>
-                      <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
-                        {stat.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground/40">
-                <Scale className="size-12 opacity-30" />
-                <span className="text-[10px] font-mono uppercase tracking-widest">
-                  Submit a prompt to generate verdict
-                </span>
-              </div>
-            )}
+            <Info className="text-gray-500 h-8 w-8 opacity-50" />
+          </div>
+          <div className="bg-white/5 rounded-lg p-4 border border-white/5 flex items-center justify-between flex-1">
+            <div>
+              <div className="text-sm text-gray-400 mb-1 uppercase tracking-wider font-semibold">Confidence</div>
+              <div className="text-xl font-bold text-white">{data.confidence}%</div>
+            </div>
+            <CheckCircle className="text-green-400 h-8 w-8 opacity-50" />
           </div>
         </div>
       </div>

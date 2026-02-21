@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel , Field 
 import uvicorn
+from dotenv import load_dotenv
 
 from app.services.llm_factory import LLMFactory
 
