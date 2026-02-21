@@ -165,7 +165,7 @@ export default function BiasBenchDashboad() {
     <div className="flex-1 px-6 pb-6">
       <div className="flex flex-col md:flex-row gap-4">
         {/* MODEL A */}
-        <div className="flex-1 flex flex-col gap-2">
+        <div className="flex-1 flex flex-col gap-2 min-w-0 w-full">
           <select 
             value={selectedModels.a}
             onChange={(e) => setSelectedModels({...selectedModels, a: e.target.value})}
@@ -185,7 +185,7 @@ export default function BiasBenchDashboad() {
         </div>
 
         {/* MODEL B */}
-        <div className="flex-1 flex flex-col gap-2">
+        <div className="flex-1 flex flex-col gap-2 min-w-0 w-full">
           <select 
             value={selectedModels.b}
             onChange={(e) => setSelectedModels({...selectedModels, b: e.target.value})}
@@ -205,7 +205,7 @@ export default function BiasBenchDashboad() {
         </div>
 
         {/* MODEL C */}
-        <div className="flex-1 flex flex-col gap-2">
+        <div className="flex-1 flex flex-col gap-2 min-w-0 w-full">
           <select 
             value={selectedModels.c}
             onChange={(e) => setSelectedModels({...selectedModels, c: e.target.value})}
