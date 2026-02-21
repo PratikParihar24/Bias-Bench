@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Bot, Cpu, BrainCircuit , Copy , Check} from "lucide-react"
+import { Bot, Cpu, BrainCircuit, Copy, Check, Maximize, X } from "lucide-react"
 
 // --- NEW MARKDOWN IMPORTS ---
 import ReactMarkdown from 'react-markdown'
@@ -25,8 +25,6 @@ const icons = {
   brain: BrainCircuit,
 }
 
-  
-
 export function ModelColumn({
   modelName,
   modelTag,
@@ -38,6 +36,7 @@ export function ModelColumn({
   const [displayedText, setDisplayedText] = useState("")
   const [charIndex, setCharIndex] = useState(0)
   const [isCopied, setIsCopied] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const textRef = useRef<HTMLDivElement>(null)
   const Icon = icons[icon]
 
@@ -45,7 +44,7 @@ export function ModelColumn({
     if (!response) return;
     navigator.clipboard.writeText(response);
     setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000); // Revert back to the copy icon after 2 seconds
+    setTimeout(() => setIsCopied(false), 2000); 
   }
 
   useEffect(() => {
@@ -73,7 +72,8 @@ export function ModelColumn({
 
   return (
     <div className="flex flex-col flex-1 min-w-0">
-      {/* The Header Section */}
+      
+      {/* --- The Header Section --- */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <div
@@ -96,22 +96,32 @@ export function ModelColumn({
           </div>
         </div>
         
-        {/* NEW: The Copy Button */}
-        <button
-          onClick={handleCopy}
-          disabled={!response || isStreaming}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-          title="Copy response"
-        >
-          {isCopied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-        </button>
-      </div>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleCopy}
+            disabled={!response || isStreaming}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+            title="Copy response"
+          >
+            {isCopied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+          </button>
+          <button
+            onClick={() => setIsExpanded(true)}
+            disabled={!response}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+            title="Expand to full screen"
+          >
+            <Maximize size={14} />
+          </button>
+        </div>
+      </div> {/* <-- This was the missing closing div! */}
       
+      {/* --- The Text Area --- */}
       <div
         ref={textRef}
         className="relative flex-1 min-h-[200px] max-h-[280px] overflow-y-auto rounded border border-border bg-input/50 p-4 font-mono text-xs leading-relaxed text-foreground/90 scrollbar-thin break-words"
       >
-        {/* Scanline overlay */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded">
           <div
             className="absolute inset-x-0 h-8 opacity-[0.03] animate-scanline"
@@ -119,7 +129,6 @@ export function ModelColumn({
           />
         </div>
 
-        {/* --- SURGICAL MARKDOWN INJECTION --- */}
         {text ? (
           <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-transparent prose-pre:p-0">
             <ReactMarkdown
@@ -132,9 +141,7 @@ export function ModelColumn({
                       style={vscDarkPlus as any}
                       language={match[1]}
                       PreTag="div"
-                      // Lock code block widths so they don't break your flex container!
                       className="rounded border border-border !bg-black/50 text-[10px] max-w-full overflow-x-auto scrollbar-thin"
-                      // ADD THIS PROP TO FORCE INLINE CSS SCROLLING:
                       customStyle={{ maxWidth: '100%', overflowX: 'auto' }}
                       {...props}
                     >
@@ -146,13 +153,11 @@ export function ModelColumn({
                     </code>
                   );
                 },
-                // We map paragraphs so your cursor stays inline with the text
                 p({ children }) {
                   return <p className="mb-2 last:mb-0">{children}</p>;
                 }
               }}
             >
-              {/* We append a markdown-safe cursor block directly to the text stream */}
               {text + (showCursor ? " ▌" : "")}
             </ReactMarkdown>
           </div>
@@ -165,6 +170,67 @@ export function ModelColumn({
           </div>
         )}
       </div>
+
+      {/* --- The Expanded Modal --- */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-6 md:p-12 animate-in fade-in duration-200">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-xl w-full max-w-5xl h-full flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
+              <div className="flex items-center gap-3">
+                <div className="size-8 rounded flex items-center justify-center" style={{ backgroundColor: `${accentColor}20`, border: `1px solid ${accentColor}40` }}>
+                  <Icon className="size-4" style={{ color: accentColor }} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold tracking-wider" style={{ color: accentColor }}>{modelTag}</div>
+                  <div className="text-sm font-semibold text-white">{modelName}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-white text-xs transition-colors border border-white/10">
+                  {isCopied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                  {isCopied ? "Copied!" : "Copy Text"}
+                </button>
+                <button onClick={() => setIsExpanded(false)} className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 text-base text-gray-200 scrollbar-thin break-words">
+              <div className="prose prose-invert prose-base md:prose-lg max-w-none prose-pre:bg-transparent prose-pre:p-0">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ node, inline, className, children, ...props }: any) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !inline && match ? (
+                        <SyntaxHighlighter
+                          style={vscDarkPlus as any}
+                          language={match[1]}
+                          PreTag="div"
+                          className="rounded border border-border !bg-black/50 text-sm max-w-full overflow-x-auto scrollbar-thin my-4"
+                          {...props}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className="bg-white/10 rounded px-1.5 py-0.5 text-blue-300 break-words" {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                  }}
+                >
+                  {text}
+                </ReactMarkdown>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
