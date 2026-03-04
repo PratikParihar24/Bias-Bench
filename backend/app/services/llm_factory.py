@@ -1,5 +1,6 @@
 import os 
 import asyncio
+import time
 from click import prompt
 from dotenv import load_dotenv
 from google import genai
@@ -124,8 +125,20 @@ class LLMFactory:
                 response_format={"type": "json_object" },
                 temperature=0.1,  # We want a deterministic answer from the judge
             )
+            # SAFEGUARD: Check if OpenRouter actually gave us a valid response
+            if not response or not response.choices:
+                raise ValueError("OpenRouter API returned an empty or invalid choices list.")
+            
+            # Get the raw text
+            raw_text = response.choices[0].message.content
+            
+            # Clean up the text just in case the AI wraps it in markdown (```json ... ```)
+            clean_text = raw_text.replace('```json', '').replace('```', '').strip()
+            
             return json.loads(response.choices[0].message.content)
         
+        
+            
         except Exception as e:
             print(f"OpenRouter Judge Error: {str(e)}")
             return {
@@ -147,6 +160,20 @@ class LLMFactory:
             "mixtral": self.fetch_mixtral,
             "gemma_9b": self.fetch_gemma
         }
+        async def fetch_and_time(model_key, prompt_text):
+            start_time = time.perf_counter()
+
+            # Run actual API call 
+            result = await available_models[model_key](prompt_text)
+
+            end_time = time.perf_counter()
+            elapsed = round(end_time - start_time , 2)
+
+            # print it directly to terminal ; 
+            print(f"⏱️ [SPEED TEST] {model_key.upper()} took {elapsed} seconds!")
+
+            return model_key,result
+    
 
         tasks = []
         valid_model_keys = []

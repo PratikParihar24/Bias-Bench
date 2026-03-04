@@ -1,7 +1,7 @@
 "use client"
 
 import { useState , useEffect } from 'react' ; 
-import { Menu , X , History , ChevronRight , Plus } from "lucide-react"
+import { Menu , X , History , ChevronRight , Plus , Trash2} from "lucide-react"
 
 export function Sidebar({onSelectAudit, onNewAudit} : {onSelectAudit?: (audit: any) => void, onNewAudit?: () => void}) {
     const [isOpen, setIsOpen] = useState(false);
@@ -32,6 +32,26 @@ export function Sidebar({onSelectAudit, onNewAudit} : {onSelectAudit?: (audit: a
             setLoading(false);
         }
     };
+
+    const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>, id: number) => {
+        e.stopPropagation(); // Prevent triggering the audit selection
+
+        try{
+          const res = await fetch(`http://localhost:8000/api/history/${id}`, {
+            method: 'DELETE'
+          });
+
+          if(res.ok) {            // Remove the deleted audit from the local state
+            setHistory(prevHistory => prevHistory.filter(item => item.id !== id));
+          }
+          else{
+            console.error("Failed to delete audit with id:", id);
+          }
+          }
+          catch(error) {
+            console.error("Error deleting audit:", error);
+        }
+    }
 
     return (
         <>
@@ -93,24 +113,40 @@ export function Sidebar({onSelectAudit, onNewAudit} : {onSelectAudit?: (audit: a
             <div className="text-gray-400 text-sm text-center mt-10">No past audits found.</div>
           ) : (
             history.map((audit) => (
-              <button 
+              <div 
                 key={audit.id}
                 onClick={() => {
                    if (onSelectAudit) onSelectAudit(audit);
                    setIsOpen(false); // Close drawer when they click an old audit
                 }}
-                className="text-left bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-4 transition group"
+                className="text-left bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-4 transition group cursor-pointer"
               >
                 <div className="text-sm font-medium text-white line-clamp-2 pr-4">
                   "{audit.prompt}"
                 </div>
+                
                 <div className="flex justify-between items-center mt-3">
+                  {/* Left Side: Score Badge */}
                   <span className="text-xs text-gray-400 bg-black/40 px-2 py-1 rounded border border-white/5">
                     Score: {audit.verdict?.subjectivity_score || 'N/A'}
                   </span>
-                  <ChevronRight size={16} className="text-gray-600 group-hover:text-blue-400 transition" />
+                  
+                  {/* Right Side: Action Icons */}
+                  <div className="flex items-center gap-1">
+                    {/* The New Delete Button (Fades in on hover) */}
+                    <button 
+                      onClick={(e) => handleDelete(e, audit.id)}
+                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete Audit"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                    
+                    {/* Your Existing Arrow */}
+                    <ChevronRight size={16} className="text-gray-600 group-hover:text-blue-400 transition" />
+                  </div>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>

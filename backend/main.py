@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel , Field 
+from requests import session
 import uvicorn
 from dotenv import load_dotenv
 from typing import List
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from app import models 
 from app.database import engine, get_db
 from app.services.llm_factory import LLMFactory
+from fastapi import HTTPException
 
 # create the SQLite tables on startup
 
@@ -82,6 +84,24 @@ async def get_history(db: Session = Depends(get_db)):
         print(f"Error fetching history: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
+@app.delete("/api/history/{audit_id}")
+def delete_audit(audit_id: int, db : session = Depends(get_db)):
+
+    # Search the database for the specific audit ID
+    audit = db.query(models.AuditRecord).filter(models.AuditRecord.id == audit_id).first()
+
+    # if someone tries to delete something that does not exist 
+
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    
+    # delete it from the database and save the changes 
+    
+    db.delete(audit)
+    db.commit()
+
+    return {"message": f"Audit with ID {audit_id} has been deleted successfully."}
+
     # Start the local server
 
 if __name__ == "__main__":
