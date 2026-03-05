@@ -1,12 +1,14 @@
 "use client"
 
-import { useState , useCallback } from "react"
+import React, { useState, useCallback, useEffect } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { PromptBar } from "@/components/prompt-bar"
 import { ModelColumn } from "@/components/model-column"
 import { VerdictPanel } from "@/components/verdict-panel"
 import { set } from "date-fns"
 import { Sidebar } from "@/components/sidebar"
+import { Info, Download, Zap } from "lucide-react";
+import { GuideModal } from "@/components/guide-modal"; // Adjust path if needed
 
 // Put this near the top of page.tsx, under your imports
 const AVAILABLE_MODELS = [
@@ -23,17 +25,40 @@ export default function BiasBenchDashboad() {
   const [response,setResponse] = useState({a:"",b:"",c:""})
   const [verdict, setVerdict] = useState<any>(null)
   const [isStreaming, setStreaming] = useState(false)
+  const [enableStreaming, setEnableStreaming] = useState(true) // new toggle state
+  const [currentPrompt, setCurrentPrompt] = useState("")
   const [selectedModels, setSelectedModels] = useState({
     a : "gemini",
     b: "llama_70b",
     c: "llama_8b",
   })
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [finishedTypingCount, setFinishedTypingCount] = useState(0); // NEW: Track how many columns have finished typing
+
+  // if user switches to fast mode mid-stream, bail out early
+  useEffect(() => {
+    if (!enableStreaming && isStreaming) {
+      setStreaming(false);
+      setHasAudited(true);
+      setFinishedTypingCount(3);
+    }
+  }, [enableStreaming, isStreaming]);
+
+  // once all three columns finish (or fast mode) reveal verdict
+  React.useEffect(() => {
+    if (enableStreaming && finishedTypingCount === 3) {
+      setStreaming(false);
+      setHasAudited(true);
+    }
+  }, [finishedTypingCount, enableStreaming]);
 
   const handleAudit = useCallback(async(prompt:string) => {
 
     // 1. Reset the UI for a new Audit 
 
+    setCurrentPrompt(prompt)
     setIsAuditing(true)
+    setFinishedTypingCount(0);
     setHasAudited(false)
     setStreaming(false)
     setResponse({a:"Connecting to BiasBench AI Engine...", b:"Waiting...", c:"Waiting...."})
@@ -78,21 +103,17 @@ export default function BiasBenchDashboad() {
 
     setVerdict(aiVerdict);
 
-    // 5. Trigger your UI animations
-
+    // 5. Trigger your UI animations or skip if streaming disabled
     setIsAuditing(false);
-    setStreaming(true);
-
-    // 6. Estimate when the typing animation will finish to reveal the verdict panel
-
-    const maxLen = Math.max(modelA.length, modelB.length, modelC.length);
-
-    const estimatedMs = maxLen * 15; // Assuming 15ms per character
-
-    setTimeout(() => {
+    if (enableStreaming) {
+      // start typing animation; verdict will appear when all three columns have reported
+      setStreaming(true);
+    } else {
+      // fast mode – show immediately
       setStreaming(false);
       setHasAudited(true);
-    }, estimatedMs);
+      setFinishedTypingCount(3);
+    }
 
   } catch (error : any) {
     console.error("Audit failed:", error);
@@ -102,7 +123,9 @@ export default function BiasBenchDashboad() {
       b:"Error connecting to the backend.",
       c:"Error connecting to the backend.",});
     }
-  },[])
+  },[enableStreaming, selectedModels])
+
+  
 
   const loadPastAudit = (audit:any ) => {
     // Update the dropdowns to show the models that were used in this past audit 
@@ -128,7 +151,10 @@ export default function BiasBenchDashboad() {
     setIsAuditing(false)
     setStreaming(false);
     setHasAudited(true);
+    setFinishedTypingCount(3); // ensure export button appears
   };
+
+
 
   const handleNewAudit = () => {
 
@@ -147,18 +173,77 @@ export default function BiasBenchDashboad() {
     // reset the UI states
 
     setIsAuditing(false);
+    setFinishedTypingCount(0);
     setStreaming(false);
     setHasAudited(false);
-
+    setEnableStreaming(true); // allow streaming again on new audit
   }
+
+  const handleExport = () => {
+    if (!currentPrompt || Object.keys(response).length === 0) return;
+
+    const date = new Date().toLocaleString();
+    let md = `# BiasBench AI Forensics Report\n\n`;
+    md += `**Date:** ${date}\n\n`;
+    md += `**Prompt:**\n> ${currentPrompt.split('\n').join('\n> ')}\n\n---\n\n`;
+
+    // 2. STRICT VERDICT CHECK: Make sure the properties actually exist!
+    if (verdict && verdict.bias_tag) {
+      md += `## ⚖️ Judge's Verdict\n\n`;
+      md += `- **Bias Tag:** ${verdict.bias_tag}\n`;
+      md += `- **Subjectivity Score:** ${verdict.subjectivity_score}/100\n`;
+      md += `- **Agreement Rate:** ${verdict.agreement_rate}\n`;
+      md += `- **Confidence:** ${verdict.confidence}%\n\n`;
+      md += `**Summary:**\n${verdict.summary}\n\n---\n\n`;
+    }
+
+    // 3. Build the Model Responses Section
+    md += `## 🤖 Model Responses\n\n`;
+
+    ['a', 'b', 'c'].forEach((key) => {
+      const modelId = selectedModels[key as keyof typeof selectedModels];
+      const model = AVAILABLE_MODELS.find(m => m.id === modelId);
+      const text = response[key as keyof typeof response];
+
+      if (model && text) {
+        md += `### ${model.name}\n\n`;
+        md += `${text}\n\n---\n\n`;
+      }
+    });
+
+    // 4. Trigger the Download
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `biasbench-report-${new Date().getTime()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
 
   return (
     <div className="min-h-screen flex flex-col cyber-grid-bg">
       <Sidebar onSelectAudit={loadPastAudit} onNewAudit={handleNewAudit} />
       <DashboardHeader />
 
-    {/* Search Section */}
-    <PromptBar onAudit={handleAudit} isAuditing={isAuditing} />
+    {/* Search Section with embedded toggle inside PromptBar */}
+    <div className="flex items-center gap-3 px-6 w-full">
+      <div className="flex-1">
+        <PromptBar
+          onAudit={handleAudit}
+          isAuditing={isAuditing}
+          enableStreaming={enableStreaming}
+          onToggleStreaming={() => {
+            // toggle action
+            setEnableStreaming((prev) => !prev);
+          }}
+          toggleDisabled={hasAudited}
+        />
+      </div>
+    </div>
 
     {/* model Columns */}
 
@@ -179,6 +264,8 @@ export default function BiasBenchDashboad() {
             modelTag="MODEL A"
             response={response.a}
             isStreaming={isStreaming}
+            enableStreaming={enableStreaming}
+            onFinish={() => setFinishedTypingCount(prev => prev + 1)}
             accentColor={AVAILABLE_MODELS.find(m => m.id === selectedModels.a)?.color || "#ffffff"}
             icon="bot"
           />
@@ -199,6 +286,8 @@ export default function BiasBenchDashboad() {
             modelTag="MODEL B"
             response={response.b}
             isStreaming={isStreaming}
+            enableStreaming={enableStreaming}
+            onFinish={() => setFinishedTypingCount(prev => prev + 1)}
             accentColor={AVAILABLE_MODELS.find(m => m.id === selectedModels.b)?.color || "#ffffff"}
             icon="cpu"
           />
@@ -219,15 +308,41 @@ export default function BiasBenchDashboad() {
             modelTag="MODEL C"
             response={response.c}
             isStreaming={isStreaming}
+            enableStreaming={enableStreaming}
+            onFinish={() => setFinishedTypingCount(prev => prev + 1)}
             accentColor={AVAILABLE_MODELS.find(m => m.id === selectedModels.c)?.color || "#ffffff"}
             icon="brain"
           />
         </div>
     </div>
+    {/* --- FLOATING ACTION BUTTONS --- */}
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3">
+        
+        {/* NEW: Export Button (Only shows if responses exist and it's not currently generating) */}
+        {verdict && hasAudited && (
+          <button 
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/30 text-sm text-blue-100 transition-all shadow-2xl backdrop-blur-md group hover:border-blue-400/50 animate-in slide-in-from-bottom-5"
+          >
+            <Download size={16} className="group-hover:-translate-y-0.5 transition-transform" />
+            <span className="font-medium">Export Report</span>
+          </button>
+        )}
+
+        {/* Existing Guide Button */}
+        <button 
+          onClick={() => setIsGuideOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#0a0a0a]/80 hover:bg-[#1a1a1a] border border-white/10 text-sm text-gray-300 transition-all shadow-2xl backdrop-blur-md group hover:border-white/20"
+        >
+          <Info size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+          <span className="font-medium">How it works</span>
+        </button>
+      </div>
     </div>
 
     {/* Verdict Panel */}
     <VerdictPanel isActive={hasAudited} data={verdict} />
+    <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
     </div>
   )
 }

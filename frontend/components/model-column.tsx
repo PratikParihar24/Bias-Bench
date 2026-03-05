@@ -15,8 +15,10 @@ interface ModelColumnProps {
   modelTag: string
   response: string
   isStreaming: boolean
+  enableStreaming?: boolean // new prop; defaults to true if omitted
   accentColor: string
   icon: "bot" | "cpu" | "brain"
+  onFinish?: () => void
 }
 
 const icons = {
@@ -30,8 +32,10 @@ export function ModelColumn({
   modelTag,
   response,
   isStreaming,
+  enableStreaming = true,
   accentColor,
   icon,
+  onFinish,
 }: ModelColumnProps) {
   const [displayedText, setDisplayedText] = useState("")
   const [charIndex, setCharIndex] = useState(0)
@@ -39,6 +43,7 @@ export function ModelColumn({
   const [isExpanded, setIsExpanded] = useState(false)
   const textRef = useRef<HTMLDivElement>(null)
   const Icon = icons[icon]
+  const [hasReportedFinish, setHasReportedFinish] = useState(false);
 
   const handleCopy = () => {
     if (!response) return;
@@ -50,10 +55,31 @@ export function ModelColumn({
   useEffect(() => {
     setDisplayedText("")
     setCharIndex(0)
+    setHasReportedFinish(false);
   }, [response])
 
   useEffect(() => {
+    // if streaming animation is disabled, show everything immediately
+    if (!enableStreaming) {
+      setDisplayedText(response)
+      if (response && response.length > 0 && !hasReportedFinish && onFinish) {
+        setHasReportedFinish(true)
+        onFinish()
+      }
+      return
+    }
+
+    // otherwise fall back to normal character-by-character typing
     if (!isStreaming || charIndex >= response.length) return
+
+    // NEW LOGIC: Are we done typing?
+    if (charIndex >= response.length) {
+      if (response && response.length > 0 && !hasReportedFinish && onFinish) {
+        setHasReportedFinish(true)
+        onFinish() // Tell the main page we are done!
+      }
+      return
+    }
 
     const delay = Math.random() * 20 + 10
     const timer = setTimeout(() => {
@@ -65,10 +91,10 @@ export function ModelColumn({
     }, delay)
 
     return () => clearTimeout(timer)
-  }, [isStreaming, charIndex, response])
+  }, [isStreaming, charIndex, response, hasReportedFinish, onFinish, enableStreaming])
 
-  const text = isStreaming ? displayedText : response
-  const showCursor = isStreaming && charIndex < response.length
+  const text = enableStreaming && isStreaming ? displayedText : response
+  const showCursor = enableStreaming && isStreaming && charIndex < response.length
 
   return (
     <div className="flex flex-col flex-1 min-w-0">
