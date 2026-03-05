@@ -1,30 +1,42 @@
-# --- Secrets & Environment
+# ========================
+# Frontend (Next.js/React)
+# ========================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
 
-.env
-.env.local
-.env.*.local
-
-venv/
-__pycache__/
+# ========================
+# Backend (Python/FastAPI)
+# ========================
+backend/__pycache__/
+backend/.pytest_cache/
+backend/venv/
+backend/env/
+backend/.env
+backend/.venv/
 *.pyc
+*.pyo
+*.pyd
 
-#frontend dependencies
+# ========================
+# Database & Secrets
+# ========================
+backend/biasbench.db
+*.db
+*.sqlite3
+.env
 
-node_modules/
-dist/
-.next/
-out/
-build/
-
-# --- IDE & System Files
-
+# ========================
+# OS & IDE Files
+# ========================
+.DS_Store
 .vscode/
 .idea/
-.DS_Store
-Thumbs.db
-*.log
-
-# --- Backend Specific 
-
-.python-version
-pip-log.txt
+*.swp
