@@ -2,3 +2,11 @@ fastapi
 uvicorn
 sqlalchemy
 openai
+
+# additional dependencies used in the backend
+pydantic
+requests
+python-dotenv
+click
+google-genai
+groq

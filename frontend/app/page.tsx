@@ -66,7 +66,7 @@ export default function BiasBenchDashboad() {
     try{
       // 2. Make the real API call to your FastAPI backend
 
-      const res = await fetch("http://127.0.0.1:8000/api/audit", {
+      const res = await fetch("https://bias-bench.onrender.com/api/audit", {
         method:"POST",
         headers:{
           "Content-Type":"application/json",
