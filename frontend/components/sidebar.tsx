@@ -19,7 +19,8 @@ export function Sidebar({onSelectAudit, onNewAudit} : {onSelectAudit?: (audit: a
     const fetchHistory = async () => {
         try {
             setLoading(true);
-            const res = await fetch('https://bias-bench.onrender.com/api/history');
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+            const res = await fetch(`${API_URL}/api/history`);
             const json = await res.json();
 
             if(json.status === 'success') {
@@ -37,7 +38,8 @@ export function Sidebar({onSelectAudit, onNewAudit} : {onSelectAudit?: (audit: a
         e.stopPropagation(); // Prevent triggering the audit selection
 
         try{
-          const res = await fetch(`https://bias-bench.onrender.com/api/history/${id}`, {
+          const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+          const res = await fetch(`${API_URL}/api/history/${id}`, {
             method: 'DELETE'
           });
 

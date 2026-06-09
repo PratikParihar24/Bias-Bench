@@ -10,7 +10,6 @@ import { Sidebar } from "@/components/sidebar"
 import { Info, Download, Zap } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal"; // Adjust path if needed
 
-// Put this near the top of page.tsx, under your imports
 const AVAILABLE_MODELS = [
   { id: "gemini", name: "Google Gemini 2.5 Flash", icon: "bot", color: "#38bdf8" },
   { id: "llama_70b", name: "Meta Llama 3.3 (70B)", icon: "cpu", color: "#e879a8" },
@@ -66,7 +65,8 @@ export default function BiasBenchDashboad() {
     try{
       // 2. Make the real API call to your FastAPI backend
 
-      const res = await fetch("https://bias-bench.onrender.com/api/audit", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${API_URL}/api/audit`, {
         method:"POST",
         headers:{
           "Content-Type":"application/json",
@@ -136,7 +136,7 @@ export default function BiasBenchDashboad() {
       c: audit.selected_models[2],
     });
 
-    // Unpack the dictionary from the datanase into the columns 
+    // Unpack the dictionary from the database into the columns 
 
     setResponse({
       a: audit.responses[audit.selected_models[0]] || "Model response not found.",
