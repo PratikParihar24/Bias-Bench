@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+// @ts-ignore: CSS module type declarations are not available
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });

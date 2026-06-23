@@ -8,9 +8,13 @@ from typing import List
 
 from sqlalchemy.orm import Session
 from app import models 
-from app.database import engine, get_db
+from app.database import engine, get_db, SessionLocal
 from app.services.llm_factory import LLMFactory
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
+import uuid
+
+# 1. Global dictionary to temporarily store job states
+JOBS = {}
 
 # create the SQLite tables on startup
 
@@ -43,36 +47,56 @@ class PromptRequest(BaseModel):
     models: List[str] = ["gemini", "llama_70b", "llama_8b"]
 
 
-# Define the API endpoint to handle incoming prompts
+# Background execution function
+async def process_audit(job_id: str, request: PromptRequest):
+    try:
+        results = await llm_engine.run_all(request.prompt, request.models)
+        
+        # Open an isolated session for this background task
+        db = SessionLocal()
+        try:
+            new_audit = models.AuditRecord(
+                prompt = request.prompt,
+                selected_models = request.models,
+                responses = results["responses"],
+                verdict = results["verdict"]
+            )
+            db.add(new_audit)
+            db.commit()
+            db.refresh(new_audit)
+            
+            JOBS[job_id] = {
+                "status": "completed",
+                "data": {"status": "success", "data": results, "audit_id": new_audit.id}
+            }
+        finally:
+            db.close()
+            
+    except Exception as e:
+        JOBS[job_id] = {
+            "status": "failed",
+            "error": str(e)
+        }
 
 @app.post("/api/audit")
-async def run_audit(request:PromptRequest, db: Session = Depends(get_db)):
-    try:
-        results = await llm_engine.run_all(request.prompt , request.models)
+async def run_audit(request:PromptRequest, background_tasks: BackgroundTasks):
+    job_id = str(uuid.uuid4())
+    JOBS[job_id] = {"status": "processing", "data": None}
+    background_tasks.add_task(process_audit, job_id, request)
+    return {"job_id": job_id}
 
-        new_audit = models.AuditRecord(
-            prompt = request.prompt,
-            selected_models = request.models,
-            responses = results["responses"],
-            verdict = results["verdict"]
-        )
-
-        db.add(new_audit)
-        db.commit()
-        db.refresh(new_audit)
-
-        # send the data back to react so we can display it on the frontend. We include the "status" field to make it easier for the frontend to handle errors in the future if we want to add that functionality.
-
-        return {"status":"success", "data":results, "audit_id": new_audit.id}
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Audit failed: {str(e)}")
+@app.get("/api/jobs/{job_id}")
+async def get_job_status(job_id: str):
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
 
 @app.get("/api/history")
 
 async def get_history(db: Session = Depends(get_db)):
     try : 
-        #fetch the 10 ost recent audits , descending order by creation date
+        #fetch the 10 most recent audits , descending order by creation date
 
         past_audits = db.query(models.AuditRecord)\
         .order_by(models.AuditRecord.created_at.desc())\

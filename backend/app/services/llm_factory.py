@@ -7,6 +7,15 @@ from google import genai
 from groq import AsyncGroq
 import json
 from openai import AsyncOpenAI
+from pydantic import BaseModel, ValidationError
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+class JudgeResponseSchema(BaseModel):
+    summary: str
+    subjectivity_score: int
+    bias_tag: str
+    agreement_rate: str
+    confidence: int
 
 #load environment variables from .env file
 load_dotenv()
@@ -116,6 +125,19 @@ class LLMFactory:
         """
 
         try:
+            return await self._fetch_judge_response(analysis_input, system_instructions)
+        except Exception as e:
+            print(f"OpenRouter Judge Error after retries: {str(e)}")
+            return {
+                "summary": "Evaluation failed due to an error in the Judge AI.",
+                "subjectivity_score": 0,
+                "bias_tag": "Unknown",
+                "agreement_rate": "UNKNOWN",
+                "confidence": 0
+            }
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
+    async def _fetch_judge_response(self, analysis_input: str, system_instructions: str):
             response = await self.openrouter_client.chat.completions.create(
                 model='openrouter/free',
                 messages=[
@@ -135,19 +157,9 @@ class LLMFactory:
             # Clean up the text just in case the AI wraps it in markdown (```json ... ```)
             clean_text = raw_text.replace('```json', '').replace('```', '').strip()
             
-            return json.loads(response.choices[0].message.content)
-        
-        
-            
-        except Exception as e:
-            print(f"OpenRouter Judge Error: {str(e)}")
-            return {
-                "summary": "Evaluation failed due to an error in the Judge AI.",
-                "subjectivity_score": 0,
-                "bias_tag": "Unknown",
-                "agreement_rate": "UNKNOWN",
-                "confidence": 0
-            }
+            parsed_json = json.loads(clean_text)
+            validated_data = JudgeResponseSchema(**parsed_json)
+            return validated_data.model_dump()
     
         
     async def run_all(self,prompt:str, selected_models:list) -> dict :

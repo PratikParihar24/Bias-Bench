@@ -2,14 +2,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./biasbench.db"
+import os
+from dotenv import load_dotenv
 
-# we must add connect_args={"check_same_thread": False} for SQLite to allow multiple threads to access the database
+# Load environment variables from .env BEFORE reading os.getenv
+load_dotenv()
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+raw_db_url = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/biasbench")
+SQLALCHEMY_DATABASE_URL = raw_db_url.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # this is the "factory" that will create new database sessions for us whenever we need to interact with the database
 

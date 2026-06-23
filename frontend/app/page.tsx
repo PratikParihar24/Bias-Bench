@@ -33,6 +33,7 @@ export default function BiasBenchDashboad() {
   })
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [finishedTypingCount, setFinishedTypingCount] = useState(0); // NEW: Track how many columns have finished typing
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
   // if user switches to fast mode mid-stream, bail out early
   useEffect(() => {
@@ -52,6 +53,13 @@ export default function BiasBenchDashboad() {
   }, [finishedTypingCount, enableStreaming]);
 
   const handleAudit = useCallback(async(prompt:string) => {
+    if (isAuditing) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     // 1. Reset the UI for a new Audit 
 
@@ -66,7 +74,7 @@ export default function BiasBenchDashboad() {
       // 2. Make the real API call to your FastAPI backend
 
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      const res = await fetch(`${API_URL}/api/audit`, {
+      const startRes = await fetch(`${API_URL}/api/audit`, {
         method:"POST",
         headers:{
           "Content-Type":"application/json",
@@ -74,15 +82,37 @@ export default function BiasBenchDashboad() {
         body: JSON.stringify({prompt : prompt,
           models: [selectedModels.a, selectedModels.b, selectedModels.c]
         }),
+        signal: controller.signal
     });
 
-    if (!res.ok) {
-      throw new Error(`Server Error: ${res.status}`);
+    if (!startRes.ok) {
+      throw new Error(`Server Error: ${startRes.status}`);
     }
 
-    // 3. Parse the JSON returned by Python
+    const { job_id } = await startRes.json();
 
-    const jsonResponse = await res.json();
+    // 2. Asynchronous Polling Loop
+    let jobCompleted = false;
+    let jsonResponse: any = null;
+
+    while (!jobCompleted) {
+        // Respect cancellation during polling
+        if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+
+        const statusRes = await fetch(`${API_URL}/api/jobs/${job_id}`, {
+            signal: controller.signal
+        });
+        const jobData = await statusRes.json();
+
+        if (jobData.status === "completed") {
+            jobCompleted = true;
+            jsonResponse = jobData.data;
+        } else if (jobData.status === "failed") {
+            throw new Error(jobData.error || "Job failed on backend");
+        } else {
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    }
 
     const aiResponse = jsonResponse.data.responses || {};
     const aiVerdict = jsonResponse.data.verdict || null ;
@@ -104,7 +134,6 @@ export default function BiasBenchDashboad() {
     setVerdict(aiVerdict);
 
     // 5. Trigger your UI animations or skip if streaming disabled
-    setIsAuditing(false);
     if (enableStreaming) {
       // start typing animation; verdict will appear when all three columns have reported
       setStreaming(true);
@@ -116,14 +145,20 @@ export default function BiasBenchDashboad() {
     }
 
   } catch (error : any) {
+    if (error.name === 'AbortError') {
+      console.log("Previous request cancelled");
+      return;
+    }
     console.error("Audit failed:", error);
-    setIsAuditing(false);
     setResponse({
       a:"Error connectiong to the backend. Is FastAPI running?",
       b:"Error connecting to the backend.",
       c:"Error connecting to the backend.",});
+    } finally {
+      setIsAuditing(false);
+      abortControllerRef.current = null;
     }
-  },[enableStreaming, selectedModels])
+  },[enableStreaming, selectedModels, isAuditing])
 
   
 
