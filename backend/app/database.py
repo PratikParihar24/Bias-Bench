@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 raw_db_url = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/biasbench")
-SQLALCHEMY_DATABASE_URL = raw_db_url.replace("postgres://", "postgresql://", 1)
+SQLALCHEMY_DATABASE_URL = raw_db_url.replace("postgres://", "postgresql+psycopg://", 1).replace("postgresql://", "postgresql+psycopg://", 1)
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
