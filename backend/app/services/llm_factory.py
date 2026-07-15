@@ -26,6 +26,7 @@ class LLMFactory:
         self.gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         self.groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
         self.openrouter_client = AsyncOpenAI(base_url="https://openrouter.ai/api/v1",api_key=os.getenv("OPENROUTER_API_KEY"))
+        self.groq_judge_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY_JUDGE") or os.getenv("GROQ_API_KEY"))
 
     async def fetch_gemini(self,prompt:str) -> str:
         try:
@@ -124,10 +125,21 @@ class LLMFactory:
         {models_text}
         """
 
+        # Prioritize Groq (using GROQ_API_KEY_JUDGE or GROQ_API_KEY) and fallback to OpenRouter
+        use_groq = bool(os.getenv("GROQ_API_KEY_JUDGE") or os.getenv("GROQ_API_KEY"))
+        
+        if use_groq:
+            try:
+                print("Attempting bias evaluation via Groq Judge...")
+                return await self._fetch_judge_response_groq(analysis_input, system_instructions)
+            except Exception as e:
+                print(f"Groq Judge Error after retries: {str(e)}. Falling back to OpenRouter...")
+
         try:
-            return await self._fetch_judge_response(analysis_input, system_instructions)
+            print("Attempting bias evaluation via OpenRouter Judge...")
+            return await self._fetch_judge_response_openrouter(analysis_input, system_instructions)
         except Exception as e:
-            print(f"OpenRouter Judge Error after retries: {str(e)}")
+            print(f"Both Judge APIs failed. Last error: {str(e)}")
             return {
                 "summary": "Evaluation failed due to an error in the Judge AI.",
                 "subjectivity_score": 0,
@@ -137,29 +149,46 @@ class LLMFactory:
             }
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
-    async def _fetch_judge_response(self, analysis_input: str, system_instructions: str):
-            response = await self.openrouter_client.chat.completions.create(
-                model='openrouter/free',
-                messages=[
-                    {"role": "system", "content": system_instructions},
-                    {"role": "user", "content": analysis_input}
-                ],
-                response_format={"type": "json_object" },
-                temperature=0.1,  # We want a deterministic answer from the judge
-            )
-            # SAFEGUARD: Check if OpenRouter actually gave us a valid response
-            if not response or not response.choices:
-                raise ValueError("OpenRouter API returned an empty or invalid choices list.")
-            
-            # Get the raw text
-            raw_text = response.choices[0].message.content
-            
-            # Clean up the text just in case the AI wraps it in markdown (```json ... ```)
-            clean_text = raw_text.replace('```json', '').replace('```', '').strip()
-            
-            parsed_json = json.loads(clean_text)
-            validated_data = JudgeResponseSchema(**parsed_json)
-            return validated_data.model_dump()
+    async def _fetch_judge_response_groq(self, analysis_input: str, system_instructions: str):
+        response = await self.groq_judge_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_instructions},
+                {"role": "user", "content": analysis_input}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,  # We want a deterministic answer from the judge
+        )
+        if not response or not response.choices:
+            raise ValueError("Groq Judge API returned an empty or invalid choices list.")
+        
+        raw_text = response.choices[0].message.content
+        clean_text = raw_text.replace('```json', '').replace('```', '').strip()
+        
+        parsed_json = json.loads(clean_text)
+        validated_data = JudgeResponseSchema(**parsed_json)
+        return validated_data.model_dump()
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
+    async def _fetch_judge_response_openrouter(self, analysis_input: str, system_instructions: str):
+        response = await self.openrouter_client.chat.completions.create(
+            model='openrouter/free',
+            messages=[
+                {"role": "system", "content": system_instructions},
+                {"role": "user", "content": analysis_input}
+            ],
+            response_format={"type": "json_object" },
+            temperature=0.1,  # We want a deterministic answer from the judge
+        )
+        if not response or not response.choices:
+            raise ValueError("OpenRouter API returned an empty or invalid choices list.")
+        
+        raw_text = response.choices[0].message.content
+        clean_text = raw_text.replace('```json', '').replace('```', '').strip()
+        
+        parsed_json = json.loads(clean_text)
+        validated_data = JudgeResponseSchema(**parsed_json)
+        return validated_data.model_dump()
     
         
     async def run_all(self,prompt:str, selected_models:list) -> dict :
