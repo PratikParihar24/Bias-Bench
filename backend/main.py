@@ -127,11 +127,17 @@ def delete_audit(audit_id: int, db : session = Depends(get_db)):
     return {"message": f"Audit with ID {audit_id} has been deleted successfully."}
 
 @app.get("/api/cron")
+@app.get("/api/cron/")
+@app.get("/cron")
+@app.get("/cron/")
+@app.get("/health")
+@app.get("/health/")
 def cron_ping():
     """
     Lightweight endpoint to keep the Render service awake.
     Render spins down after 15 minutes of inactivity, so pinging this endpoint
     every 14 minutes will prevent it from shutting down.
+    Supports /api/cron, /cron, and /health (with or without trailing slashes).
     """
     return {"status": "healthy", "message": "Keep-alive successful"}
 
