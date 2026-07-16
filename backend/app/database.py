@@ -8,10 +8,13 @@ from dotenv import load_dotenv
 # Load environment variables from .env BEFORE reading os.getenv
 load_dotenv()
 
-raw_db_url = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/biasbench")
-SQLALCHEMY_DATABASE_URL = raw_db_url.replace("postgres://", "postgresql+psycopg://", 1).replace("postgresql://", "postgresql+psycopg://", 1)
+raw_db_url = os.getenv("DATABASE_URL", "sqlite:///./biasbench.db")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+if "sqlite" in raw_db_url:
+    engine = create_engine(raw_db_url, connect_args={"check_same_thread": False})
+else:
+    SQLALCHEMY_DATABASE_URL = raw_db_url.replace("postgres://", "postgresql+psycopg://", 1).replace("postgresql://", "postgresql+psycopg://", 1)
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # this is the "factory" that will create new database sessions for us whenever we need to interact with the database
 

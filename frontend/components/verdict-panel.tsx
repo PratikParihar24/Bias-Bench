@@ -21,7 +21,7 @@ export function VerdictPanel({isActive, data}: VerdictPanelProps) {
   if (!isActive || !data) return null;
 
   return (
-    <div className="mx-6 mb-6 p-6 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md animate-fade-in-up">
+    <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 p-4 sm:p-6 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md animate-fade-in-up">
       <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
         <Activity className="text-blue-400 h-6 w-6" />
         <h2 className="text-xl font-bold text-white tracking-wide">Verdict Summary</h2>

@@ -265,7 +265,7 @@ export default function BiasBenchDashboad() {
       <DashboardHeader />
 
     {/* Search Section with embedded toggle inside PromptBar */}
-    <div className="flex items-center gap-3 px-6 w-full">
+    <div className="flex items-center gap-3 px-4 sm:px-6 w-full">
       <div className="flex-1">
         <PromptBar
           onAudit={handleAudit}
@@ -282,7 +282,7 @@ export default function BiasBenchDashboad() {
 
     {/* model Columns */}
 
-    <div className="flex-1 px-6 pb-6">
+    <div className="flex-1 px-4 sm:px-6 pb-4 sm:pb-6">
       <div className="flex flex-col md:flex-row gap-4">
         {/* MODEL A */}
         <div className="flex-1 flex flex-col gap-2 min-w-0 w-full">
@@ -351,7 +351,7 @@ export default function BiasBenchDashboad() {
         </div>
     </div>
     {/* --- FLOATING ACTION BUTTONS --- */}
-      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3">
+      <div className="md:fixed md:bottom-8 md:right-8 md:z-50 flex flex-row md:flex-col justify-center items-center md:items-end gap-3 p-4 md:p-0 w-full md:w-auto relative bottom-0 right-0">
         
         {/* NEW: Export Button (Only shows if responses exist and it's not currently generating) */}
         {verdict && hasAudited && (
